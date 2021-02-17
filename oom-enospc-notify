@@ -1,0 +1,122 @@
+#!/usr/bin/env python
+
+#
+# Copyright 2021 Robert T. McGibbon
+# Licensed under the Apache License, Version 2.0 (the "License")
+# Based on https://github.com/iovisor/bcc/blob/master/tools/oomkill.py
+# which is Copyright 2016 Netflix, Inc.
+# Licensed under the Apache License, Version 2.0 (the "License")
+#
+
+import sys
+import json
+from bcc import BPF
+import time
+import functools
+
+SYSCALLS = [
+    "fsync",
+    "fallocate",
+    "write",
+    "writev",
+    "pwritev",
+    "pwritev2",
+    "mkdir",
+    "mkdirat",
+    "mknod",
+    "mknodat",
+    "open",
+    "openat",
+    "openat2",
+    "rename",
+    "renameat",
+    "renameat2",
+]
+
+
+BPF_TEXT = """
+#include <uapi/linux/ptrace.h>
+#include <linux/oom.h>
+struct data_t {
+    short etype;
+    u32 fpid;
+    u32 tpid;
+    char fcomm[TASK_COMM_LEN];
+    char tcomm[TASK_COMM_LEN];
+};
+BPF_PERF_OUTPUT(events);
+void kprobe__oom_kill_process(struct pt_regs *ctx, struct oom_control *oc, const char *message)
+{
+    struct task_struct *p = oc->chosen;
+    struct data_t data = {};
+    data.etype = 0;
+    data.fpid = (bpf_get_current_pid_tgid() >> 32);
+    data.tpid = p->pid;
+    bpf_get_current_comm(&data.fcomm, sizeof(data.fcomm));
+    bpf_probe_read_kernel(&data.tcomm, sizeof(data.tcomm), p->comm);
+    events.perf_submit(ctx, &data, sizeof(data));
+}
+int trace_return(struct pt_regs *args) {
+    int ret = PT_REGS_RC(args);
+    int errno = ret >= 0 ? 0 : -ret;
+    if (errno == 28) {
+        struct data_t data = {};
+        data.etype = 1;
+        data.fpid = (bpf_get_current_pid_tgid() >> 32);
+        bpf_get_current_comm(&data.fcomm, sizeof(data.fcomm));
+        events.perf_submit(args, &data, sizeof(data));
+    }
+    return 0;
+}
+"""
+
+# process event
+def print_event(b, cpu, data, size):
+    event = b["events"].event(data)
+    if event.etype == 0:
+        fmt = {
+            "time": time.time(),
+            "event": "OOM Kill",
+            "payload": {
+                "triggered_pid": event.fpid,
+                "triggered_process": event.fcomm.decode("utf-8", "replace"),
+                "killed_pid": event.tpid,
+                "killed_process": event.tcomm.decode("utf-8", "replace"),
+            },
+        }
+    elif event.etype == 1:
+        fmt = {
+            "time": time.time(),
+            "event": "ENOSPC",
+            "payload": {
+                "pid": event.fpid,
+                "process": event.fcomm.decode("utf-8", "replace"),
+            },
+        }
+    else:
+        raise RuntimeError()
+
+    print(json.dumps(fmt))
+    sys.stdout.flush()
+
+
+def main():
+    b = BPF(text=BPF_TEXT)
+    for syscall in SYSCALLS:
+        syscall_fnname = b.get_syscall_fnname(syscall)
+        if BPF.ksymname(syscall_fnname) != -1:
+            b.attach_kretprobe(event=syscall_fnname, fn_name="trace_return")
+
+    print(json.dumps({"time": time.time(), "event": "started"}))
+    sys.stdout.flush()
+    b["events"].open_perf_buffer(functools.partial(print_event, b))
+
+    while True:
+        try:
+            b.perf_buffer_poll()
+        except KeyboardInterrupt:
+            exit()
+
+
+if __name__ == "__main__":
+    main()
