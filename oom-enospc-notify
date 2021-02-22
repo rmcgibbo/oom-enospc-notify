@@ -96,7 +96,7 @@ def print_event(b, cpu, data, size):
     else:
         raise RuntimeError()
 
-    print(json.dumps(fmt))
+    print(json.dumps(fmt), file=sys.stderr)
     sys.stdout.flush()
 
 
