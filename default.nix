@@ -10,7 +10,7 @@ stdenv.mkDerivation rec {
 
   src = ./.;
   nativeBuildInputs = [ python.pkgs.wrapPython ];
-  propagatedBuildInputs = [ linuxPackages.bcc ];
+  propagatedBuildInputs = [ linuxPackages.bcc pkgs.bzip2 ];
 
   installPhase = ''
     runHook preInstall
