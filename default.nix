@@ -6,11 +6,11 @@
 
 stdenv.mkDerivation rec {
   pname = "oom-enospc-notify";
-  version = "0.1";
+  version = "0.1-${linuxPackages.kernel.version}";
 
   src = ./.;
   nativeBuildInputs = [ python.pkgs.wrapPython ];
-  propagatedBuildInputs = [ linuxPackages.bcc pkgs.bzip2 ];
+  propagatedBuildInputs = [ linuxPackages.bcc ];
 
   installPhase = ''
     runHook preInstall
@@ -19,6 +19,6 @@ stdenv.mkDerivation rec {
     runHook postInstall
   '';
   postFixup = ''
-    wrapPythonProgramsIn "$out/bin" "$out $pythonPath"
+    wrapPythonPrograms
   '';
 }
