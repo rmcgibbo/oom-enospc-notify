@@ -1,7 +1,6 @@
-{ pkgs ? import <nixpkgs> {}
-, stdenv ? pkgs.stdenv
-, python ? pkgs.python3
-, linuxPackages ? pkgs.linuxPackages
+{ stdenv
+, python3
+, linuxPackages
 }:
 
 stdenv.mkDerivation rec {
@@ -9,7 +8,7 @@ stdenv.mkDerivation rec {
   version = "0.1-${linuxPackages.kernel.version}";
 
   src = ./.;
-  nativeBuildInputs = [ python.pkgs.wrapPython ];
+  nativeBuildInputs = [ python3.pkgs.wrapPython ];
   propagatedBuildInputs = [ linuxPackages.bcc ];
 
   installPhase = ''
