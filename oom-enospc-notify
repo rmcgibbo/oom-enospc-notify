@@ -111,6 +111,9 @@ def main():
     sys.stdout.flush()
     b["events"].open_perf_buffer(functools.partial(print_event, b))
 
+    if "-h" in sys.argv:
+        return
+    
     while True:
         try:
             b.perf_buffer_poll()
