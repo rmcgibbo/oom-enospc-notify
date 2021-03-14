@@ -1,6 +1,9 @@
 { stdenv
 , python3
 , linuxPackages
+, kmod
+, toybox
+, bzip2
 }:
 
 stdenv.mkDerivation rec {
@@ -9,7 +12,7 @@ stdenv.mkDerivation rec {
 
   src = ./.;
   nativeBuildInputs = [ python3.pkgs.wrapPython ];
-  propagatedBuildInputs = [ linuxPackages.bcc ];
+  propagatedBuildInputs = [ linuxPackages.bcc kmod toybox bzip2 ];
 
   installPhase = ''
     runHook preInstall
