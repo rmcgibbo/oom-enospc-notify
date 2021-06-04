@@ -18,7 +18,7 @@
 
           src = ./.;
           nativeBuildInputs = [ pkgs.python3.pkgs.wrapPython ];
-          propagatedBuildInputs = [ linuxPackages.bcc ];
+          propagatedBuildInputs = [ linuxPackages.bcc ] ++ (with pkgs; [ kmod toybox bzip2 ]);
 
           installPhase = ''
             runHook preInstall
