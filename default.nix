@@ -1,23 +1,10 @@
-{ stdenv
-, python3
-, linuxPackages
-}:
-
-stdenv.mkDerivation rec {
-  pname = "oom-enospc-notify";
-  version = "0.1-${linuxPackages.kernel.version}";
-
-  src = ./.;
-  nativeBuildInputs = [ python3.pkgs.wrapPython ];
-  propagatedBuildInputs = [ linuxPackages.bcc ];
-
-  installPhase = ''
-    runHook preInstall
-    mkdir -p $out/bin
-    install oom-enospc-notify $out/bin/
-    runHook postInstall
-  '';
-  postFixup = ''
-    wrapPythonPrograms
-  '';
-}
+(import (
+  let
+    lock = builtins.fromJSON (builtins.readFile ./flake.lock);
+  in fetchTarball {
+    url = "https://github.com/edolstra/flake-compat/archive/${lock.nodes.flake-compat.locked.rev}.tar.gz";
+    sha256 = lock.nodes.flake-compat.locked.narHash;
+  }
+) {
+  src =  ./.;
+}).defaultNix
